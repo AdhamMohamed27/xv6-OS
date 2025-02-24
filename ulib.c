@@ -82,25 +82,20 @@ stat(const char *n, struct stat *st)
 }
 
 
-
-
 int
-atoi(const char *s)
+atoi(const char *s) //converts string to integer
 {
   int n = 0, signednum = 1;
-    if (*s == '-') {
-        signednum = -1;
-        s++;
+    if (*s == '-') { // checks if the number is negative
+        signednum = -1; //if the number is negative, set signednum to -1
+        s++; //increment the pointer to the next character, i.e, skip the '-' and move to the next number
     }
-    while (*s >= '0' && *s <= '9') {
-        n = n * 10 + (*s - '0');
-        s++;
+    while (*s >= '0' && *s <= '9') { //The loop extracts the number from the string 
+        n = n * 10 + (*s - '0'); //left shift the number by 1 and add the next number
+        s++; //move to the next number 
     }
-    
-  while('0' <= *s && *s <= '9')
-    n = n*10 + *s++ - '0';
   
-    return signednum * n;
+    return signednum * n; //retunr the number and if the number is negative, return the number as negative 
 }
 
 void*
@@ -115,4 +110,3 @@ memmove(void *vdst, const void *vsrc, int n)
     *dst++ = *src++;
   return vdst;
 }
-
