@@ -1,5 +1,3 @@
-
-
 #include "types.h" //we use this header for handling data types 
 #include "user.h" //used tp provide syscalls for user programs
 
