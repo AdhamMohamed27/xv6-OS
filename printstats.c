@@ -1,3 +1,5 @@
+
+
 #include "types.h" //we use this header for handling data types 
 #include "user.h" //used tp provide syscalls for user programs
 
@@ -150,7 +152,7 @@ int main(int argc , char *argv[]){
     float median = 0.0;
     int min = 0 , max = 0;
 
-    calculations(num, totalnum, &median, &min, &max);//passing them my reference bec in the calculations func i assigned them pointers so 
+    calculations(num, totalnum, &median, &max, &min);//passing them my reference bec in the calculations func i assigned them pointers so 
     //we can save them without returning values
 
     //printing to the terminal 
