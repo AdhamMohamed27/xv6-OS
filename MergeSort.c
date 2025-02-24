@@ -1,26 +1,15 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-// Function to convert string to integer (handles negative numbers)
-int my_atoi(char *s) {
-    int num = 0, sign = 1;
-    if (*s == '-') {
-        sign = -1;
-        s++;
-    }
-    while (*s >= '0' && *s <= '9') {
-        num = num * 10 + (*s - '0');
-        s++;
-    }
-    return sign * num;
-}
+#include "types.h"
+#include "user.h"
+#include "stat.h"
 
 // Merge function
+
+
 void merge(int arr[], int left, int mid, int right) {
     int i, j, k;
     int l = mid - left + 1;
     int r = right - mid;
-    int leftbranch[100], rightbranch[100];
+    int leftbranch[50], rightbranch[50];  // Reduce static array sizes for safety
 
     for (i = 0; i < l; i++)
         leftbranch[i] = arr[left + i];
@@ -67,28 +56,29 @@ void mergeSort(int arr[], int left, int right) {
 }
 
 int main(int argc, char *argv[]) {
+    printf(1, "WE got the arguments\n");
     if (argc < 2) {
-        printf("Usage: %s <list of numbers>\n", argv[0]);
-        exit(1);
+        printf(1, "Usage: %s <list of numbers>\n", argv[0]);
+        exit();  // Fix: No arguments allowed in exit()
     }
 
     int n = argc - 1;
-    int arr[100]; // Static size for xv6 compatibility
+    int arr[100]; // Keep static size for xv6 compatibility
 
     // Convert command-line arguments to integers
     for (int i = 0; i < n; i++) {
-        arr[i] = my_atoi(argv[i + 1]);
+        arr[i] = atoi(argv[i + 1]);  // Use built-in atoi()
     }
 
     // Sorting arr using Merge Sort
     mergeSort(arr, 0, n - 1);
 
     // Print sorted array
-    printf("Sorted array: ");
+    printf(1, "Sorted array: ");
     for (int i = 0; i < n; i++) {
-        printf("%d ", arr[i]);
+        printf(1, "%d ", arr[i]);
     }
-    printf("\n");
+    printf(1, "\n");
 
-    exit(0);
+    exit();  // Fix: No arguments allowed in exit()
 }
