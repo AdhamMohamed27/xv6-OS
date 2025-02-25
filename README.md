@@ -42,8 +42,9 @@ To test the new system calls, run the appropriate user-space test programs after
 - Optimize existing functions for better performance.
 
 ## Contributors
-- [Your Name]
-- [Other Contributors]
+- Toqa Mahmoud
+- Adham Salem
+- Khadija Iraky
 
 ## License
 This project follows the original xv6 licensing terms under MIT License.
