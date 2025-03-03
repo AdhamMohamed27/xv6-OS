@@ -33,6 +33,10 @@ struct context {
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+int clone(void (*fn)(void *), void *arg, void *stack);
+
+
+
 
 // Per-process state
 struct proc {
@@ -49,6 +53,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int shared_mem;              // Flag to indicate shared memory process (thread-like)
+
 };
 
 // Process memory is laid out contiguously, low addresses first:
