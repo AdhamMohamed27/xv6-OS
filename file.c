@@ -97,6 +97,8 @@ int
 fileseek(struct file *f, int offset, int request)
 {
   int newOffset;
+  if (f->ip == NULL || f == 0)
+    return 1;
   if (request == SEEK_SET)
     newOffset = offset;
   else if (request == SEEK_CUR)
