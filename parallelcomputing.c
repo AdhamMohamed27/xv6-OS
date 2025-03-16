@@ -122,7 +122,7 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
                 answer = biggerFunction(answer, temp2[k]);
             }
 
-            write(pipes[i][1], answer, sizeof(int));
+            write(pipes[i][1], &answer, sizeof(int));
             close(pipes[i][1]);
             
             //printf("[son] pid %d from [parent] pid %d\n",getpid(),getppid());
@@ -143,14 +143,24 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
         close(pipes[i][1]); 
     }
 
-    int realAns = 0;
-    read(pipes[0][0], &realAns, sizeof(int));
+    int realAns;
+    //read(pipes[0][0], &realAns, sizeof(int));
+    if (read(pipes[0][0], &realAns, sizeof(int)) <= 0) 
+    {
+    printf("I am so sad, I can't read from pipe 0!\n");
+    exit(1);
+    }
     close(pipes[0][0]);
 
     for (int i = 1; i < coreNum; i++)
     {
-        int tempAns = 0;
-        read(pipes[i][0], &tempAns, sizeof(int));
+        int tempAns;
+        //read(pipes[i][0], &tempAns, sizeof(int));
+        if (read(pipes[i][0], &tempAns, sizeof(int)) <= 0) 
+        {
+        printf("I am so sad, I can't read from pipe %d!\n", i);
+        exit(1);
+        }
         realAns = biggerFunction(realAns, tempAns);
 
         close(pipes[i][0]);
