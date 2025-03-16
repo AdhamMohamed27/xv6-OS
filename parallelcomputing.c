@@ -90,7 +90,7 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
         {
             printf("couldn't create the pipe (〃￣ω￣〃ゞ) \n Sorry for disappointing you. \n");
             free(arr);
-            exit(1):
+            exit(1);
         }
        
         pid_t child = fork();
@@ -115,17 +115,19 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
                 temp2[j] = arr[start + j];
             }*/
             
-            int answer = temp2[0]
+            int answer = temp2[0];
 
             for (int k = 1; k < chunk_size; k++)
             {
                 answer = biggerFunction(answer, temp2[k]);
             }
 
-            write(pipes[i][1], answer, );
+            write(pipes[i][1], answer, sizeof(int));
             close(pipes[i][1]);
             
             //printf("[son] pid %d from [parent] pid %d\n",getpid(),getppid());
+
+            free(temp2);
             exit(0);
         }
         else if (child < 0)
@@ -136,14 +138,18 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
         }
     }
 
-    int realAns;
-    read(pipes[0][0], &realAns, sizeof(int));
-
     for (int i = 0; i < coreNum; i++)
     {
-        close(pipes[i][1]);
+        close(pipes[i][1]); 
+    }
 
-        int tempAns;
+    int realAns = 0;
+    read(pipes[0][0], &realAns, sizeof(int));
+    close(pipes[0][0]);
+
+    for (int i = 1; i < coreNum; i++)
+    {
+        int tempAns = 0;
         read(pipes[i][0], &tempAns, sizeof(int));
         realAns = biggerFunction(realAns, tempAns);
 
@@ -166,7 +172,7 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
     
     free(arr);
 
-    return answer;
+    return realAns;
 
 }
 
