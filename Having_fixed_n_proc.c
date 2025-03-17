@@ -3,6 +3,11 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include <unistd.h>   // For pipe(), fork(), close(), read(), write()
+#include <sys/types.h> // For pid_t
+#include <stdio.h>     // For standard I/O
+
+
 
 #define TrialNUMS 10
 #define MOVING_AVG_WINDOW 5
@@ -18,7 +23,8 @@ int sequential_compute(const char *filename, int (*f) (int, int));
 int add(int a, int b);
 double execution_time_seq(int (*seq_func)(const char *, int (*f)(int, int)), const char *filename, int (*f)(int, int));
 double execution_time_par(void (*par_func)(int, int), int N, int n_proc);
-parallelCompute (const char *fileName, int (*f) (int, int));
+int parallelCompute (const char *fileName, int (*f) (int, int));
+int biggerFunction (int a, int b);
 int crossover(double *seq_time, double *par_time, int size, int *N_Range);
 int compare(const void *a, const void *b);
 void smoothing_median(double *data, double *smoothed_data, int size, int window_size);
@@ -61,7 +67,7 @@ int main(int argc, char *argv[]){
     fclose(file);
         
         seq_times[i] = execution_time_seq(sequential_compute, filename, biggerFunction);
-        par_times[i] = execution_time_par(parallel_computing,filename, biggerFunction));
+        par_times[i] = execution_time_par(parallelCompute,filename, biggerFunction);
         printf("N=%d, Sequential: %.6f s, Parallel: %.6f s\n", N, seq_times[i], par_times[i]);
     }
 
