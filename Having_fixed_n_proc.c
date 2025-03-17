@@ -23,7 +23,7 @@ int sequential_compute(const char *filename, int (*f) (int, int));
 int add(int a, int b);
 double execution_time_seq(int (*seq_func)(const char *, int (*f)(int, int)), const char *filename, int (*f)(int, int));
 double execution_time_par(void (*par_func)(int, int), int N, int n_proc);
-int parallelCompute (const char *fileName, int (*f) (int, int));
+int parallelCompute (const char *fileName, int (*f) (int, int), int n_proc);
 int biggerFunction (int a, int b);
 int crossover(double *seq_time, double *par_time, int size, int *N_Range);
 int compare(const void *a, const void *b);
@@ -169,7 +169,7 @@ int biggerFunction (int a, int b)
     
 }
 
-int parallelCompute (const char *fileName, int (*f) (int, int))
+int parallelCompute (const char *fileName, int (*f) (int, int), int n_proc)
 {
     int *arr = NULL;
     int *temp = NULL;
@@ -216,28 +216,22 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
 
     fclose(file);
 
-    printf("File is LOADED!! (╯°□°）╯");
 
-    int coreNum;
-
-    printf("How many cores do you want?? (✿◕‿◕)っ  \n");
-    printf("Core Number: ");
-    scanf("%d", &coreNum);
     printf("\n");
 
-    if (coreNum <= 0 || coreNum > actualSize) 
+    if (n_proc <= 0 || n_proc > actualSize) 
     {
         printf("You have an invalid core number (╥_╥)\n Choose a value between 1 and %d.\n", actualSize);
         free(arr);
         exit(1);
     }
 
-    int chunk_size = actualSize / coreNum;
-    int remainder = actualSize % coreNum;
+    int chunk_size = actualSize / n_proc;
+    int remainder = actualSize % n_proc;
 
-    int pipes[coreNum][2];
+    int pipes[n_proc][2];
 
-    for (int i = 0; i < coreNum; i++)
+    for (int i = 0; i < n_proc; i++)
     {
         if (pipe(pipes[i]) == -1)
         {
@@ -253,7 +247,7 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
 
             int *temp2 = (int *)malloc(chunk_size * sizeof(int));
 
-            if (i == coreNum -1)
+            if (i == n_proc -1)
             {
                 chunk_size = chunk_size + remainder;
             }
@@ -291,7 +285,7 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
         }
     }
 
-    for (int i = 0; i < coreNum; i++)
+    for (int i = 0; i < n_proc; i++)
     {
         close(pipes[i][1]); 
     }
@@ -305,7 +299,7 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
     }
     close(pipes[0][0]);
 
-    for (int i = 1; i < coreNum; i++)
+    for (int i = 1; i < n_proc; i++)
     {
         int tempAns;
         //read(pipes[i][0], &tempAns, sizeof(int));
@@ -338,23 +332,6 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
     return realAns;
 
 }
-
-int main ()
-{
-    char fileName[100];
-    
-    printf("Can you give me the file name you want to open (✿◕‿◕)っ ??? \n");
-    printf("File Name: ");
-    scanf("%s", fileName);
-    printf("\n");
-
-    int result = parallelCompute(fileName, biggerFunction); 
-    printf("Result: %d\n", result); 
-
-    return 0;
-}
-
-
 
 // void *parallel_computing_thread(void *arg) {
 //     ThreadData *data = (ThreadData *)arg;
