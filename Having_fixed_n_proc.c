@@ -18,7 +18,7 @@ int sequential_compute(const char *filename, int (*f) (int, int));
 int add(int a, int b);
 double execution_time_seq(int (*seq_func)(const char *, int (*f)(int, int)), const char *filename, int (*f)(int, int));
 double execution_time_par(void (*par_func)(int, int), int N, int n_proc);
-void parallel_computing(int N, int n_proc);
+parallelCompute (const char *fileName, int (*f) (int, int));
 int crossover(double *seq_time, double *par_time, int size, int *N_Range);
 int compare(const void *a, const void *b);
 void smoothing_median(double *data, double *smoothed_data, int size, int window_size);
@@ -37,18 +37,31 @@ int main(int argc, char *argv[]){
                     3000,4000,5000,6000,7000,8000,9000,10000
                     ,20000,30000,40000,50000,60000,70000,80000
                     ,90000,100000, 200000, 300000, 400000, 500000
-                    ,600000, 700000, 800000, 900000, 1000000,
-                    2000000, 3000000, 4000000, 5000000, 6000000,
-                    7000000, 8000000, 9000000, 10000000};
+                    ,600000, 700000, 800000, 900000, 1000000};
 
     int num_N = sizeof(N_range) / sizeof(N_range[0]);
+    char *filename = argv[1];
 
     double seq_times[num_N], par_times[num_N], smoothed_seq[num_N], smoothed_par[num_N];
 
     for (int i = 0; i < num_N; i++) {
         int N = N_range[i];
-        seq_times[i] = execution_time_seq(sequential_compute, argv[1], add);
-        par_times[i] = execution_time_par(parallel_computing, N_range[i], n_proc);
+        FILE *file = fopen(filename, "a");
+        if (!file) {
+        perror("Error opening file");
+        return 1;
+        }
+
+    // Append N new numbers (example: using random numbers)
+    for (int i = 0; i < N; i++) {
+        fprintf(file, "%d\n", rand() % 100);  // Append a random number (0-99)
+    }
+
+
+    fclose(file);
+        
+        seq_times[i] = execution_time_seq(sequential_compute, filename, biggerFunction);
+        par_times[i] = execution_time_par(parallel_computing,filename, biggerFunction));
         printf("N=%d, Sequential: %.6f s, Parallel: %.6f s\n", N, seq_times[i], par_times[i]);
     }
 
@@ -141,57 +154,251 @@ int add(int a, int b){ //function to add 2 numbers
     return a + b;
 }
 
-
-
-void *parallel_computing_thread(void *arg) {
-    ThreadData *data = (ThreadData *)arg;
-    int N = data->N;
-    int thread_id = data->thread_id;
-    int n_proc = data->n_proc;
-
-    int start = thread_id * (N / n_proc);
-    int end = (thread_id == n_proc - 1) ? N : (thread_id + 1) * (N / n_proc);
-
-    double sum = 0.0;
-    for (int i = start; i < end; i++) {
-        sum += i * 0.01;
-    }
-
-    double *result = malloc(sizeof(double));
-if (result == NULL) {
-    perror("malloc failed");
-    pthread_exit(NULL);
-}
-    *result = sum;
-    pthread_exit((void *)result);
+int biggerFunction (int a, int b)
+{
+    if (a > b)
+        return a;
+    else
+        return b;
+    
 }
 
-void parallel_computing(int N, int n_proc) {
-    pthread_t threads[n_proc];
-    ThreadData thread_data[n_proc];
+int parallelCompute (const char *fileName, int (*f) (int, int))
+{
+    int *arr = NULL;
+    int *temp = NULL;
+    int num = 0;
+    int size = 10;
+    int actualSize = 0;
 
-    for (int i = 0; i < n_proc; i++) {
-        thread_data[i].N = N;
-        thread_data[i].thread_id = i;
-        thread_data[i].n_proc = n_proc;
-        pthread_create(&threads[i], NULL, parallel_computing_thread, &thread_data[i]);
+    FILE *file = fopen(fileName, "r");
+    if (!file) 
+    {
+        printf("Hmmmm the file won't open, can you please fix that?\n");
+        exit(1);
     }
 
-    double total_sum = 0.0;
-    for (int i = 0; i < n_proc; i++) {
-        double *thread_result;
-        pthread_join(threads[i], (void **)&thread_result);
-        total_sum += *thread_result;
-        free(thread_result);
+    arr = (int *)malloc(size * sizeof(int));
+    if(arr == NULL)
+    {
+        printf("You have a memory allocation problem, resolve it.\nPlease...? \n (〃￣︶￣〃) \n");
+        exit(1);
     }
+
+    while (fscanf(file, "%d%*[,]", &num) == 1) 
+    {
+        arr[actualSize] = num;
+        actualSize++;
+
+        if (actualSize >= size)
+        {
+            size = size * 2;
+            temp = (int *)realloc(arr, size * sizeof(int));
+            if (temp == NULL)
+            {
+                printf("You have a memory allocation problem, resolve it.\nPlease...? \n (〃￣︶￣〃) \n");
+                free(arr);
+                exit(1);
+            }
+            else 
+            {
+                arr = temp;
+            }
+        }
+
+    }
+
+    fclose(file);
+
+    printf("File is LOADED!! (╯°□°）╯");
+
+    int coreNum;
+
+    printf("How many cores do you want?? (✿◕‿◕)っ  \n");
+    printf("Core Number: ");
+    scanf("%d", &coreNum);
+    printf("\n");
+
+    if (coreNum <= 0 || coreNum > actualSize) 
+    {
+        printf("You have an invalid core number (╥_╥)\n Choose a value between 1 and %d.\n", actualSize);
+        free(arr);
+        exit(1);
+    }
+
+    int chunk_size = actualSize / coreNum;
+    int remainder = actualSize % coreNum;
+
+    int pipes[coreNum][2];
+
+    for (int i = 0; i < coreNum; i++)
+    {
+        if (pipe(pipes[i]) == -1)
+        {
+            printf("couldn't create the pipe (〃￣ω￣〃ゞ) \n Sorry for disappointing you. \n");
+            free(arr);
+            exit(1);
+        }
+       
+        pid_t child = fork();
+        if (child == 0)
+        {
+            close(pipes[i][0]);
+
+            int *temp2 = (int *)malloc(chunk_size * sizeof(int));
+
+            if (i == coreNum -1)
+            {
+                chunk_size = chunk_size + remainder;
+            }
+
+            int start = i * chunk_size;
+            int end = (i + 1) * (chunk_size) - 1;
+
+            memcpy(temp2, &arr[start], (end - start + 1) * sizeof(int));
+
+            /*for (int j = 0; j < chunk_size; j++)
+            {
+                temp2[j] = arr[start + j];
+            }*/
+            
+            int answer = temp2[0];
+
+            for (int k = 1; k < chunk_size; k++)
+            {
+                answer = biggerFunction(answer, temp2[k]);
+            }
+
+            write(pipes[i][1], &answer, sizeof(int));
+            close(pipes[i][1]);
+            
+            //printf("[son] pid %d from [parent] pid %d\n",getpid(),getppid());
+
+            free(temp2);
+            exit(0);
+        }
+        else if (child < 0)
+        {
+            printf("Oh no!!! Child failed (╥_╥)\n");
+            free(arr);
+            exit(1);
+        }
+    }
+
+    for (int i = 0; i < coreNum; i++)
+    {
+        close(pipes[i][1]); 
+    }
+
+    int realAns;
+    //read(pipes[0][0], &realAns, sizeof(int));
+    if (read(pipes[0][0], &realAns, sizeof(int)) <= 0) 
+    {
+    printf("I am so sad, I can't read from pipe 0!\n");
+    exit(1);
+    }
+    close(pipes[0][0]);
+
+    for (int i = 1; i < coreNum; i++)
+    {
+        int tempAns;
+        //read(pipes[i][0], &tempAns, sizeof(int));
+        if (read(pipes[i][0], &tempAns, sizeof(int)) <= 0) 
+        {
+        printf("I am so sad, I can't read from pipe %d!\n", i);
+        exit(1);
+        }
+        realAns = biggerFunction(realAns, tempAns);
+
+        close(pipes[i][0]);
+    }
+
+    while(1)
+    {
+        int child_pid = wait(NULL);
+        if (child_pid > 0)
+        {
+            printf("btw the child process %d has just finished, yay! (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ \n", child_pid);
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    
+    free(arr);
+
+    return realAns;
+
 }
 
-int compare(const void *a, const void *b) {
-    double diff = (*(double *)a - *(double *)b);
-    if (diff < 0) return -1;
-    if (diff > 0) return 1;
+int main ()
+{
+    char fileName[100];
+    
+    printf("Can you give me the file name you want to open (✿◕‿◕)っ ??? \n");
+    printf("File Name: ");
+    scanf("%s", fileName);
+    printf("\n");
+
+    int result = parallelCompute(fileName, biggerFunction); 
+    printf("Result: %d\n", result); 
+
     return 0;
 }
+
+
+
+// void *parallel_computing_thread(void *arg) {
+//     ThreadData *data = (ThreadData *)arg;
+//     int N = data->N;
+//     int thread_id = data->thread_id;
+//     int n_proc = data->n_proc;
+
+//     int start = thread_id * (N / n_proc);
+//     int end = (thread_id == n_proc - 1) ? N : (thread_id + 1) * (N / n_proc);
+
+//     double sum = 0.0;
+//     for (int i = start; i < end; i++) {
+//         sum += i * 0.01;
+//     }
+
+//     double *result = malloc(sizeof(double));
+// if (result == NULL) {
+//     perror("malloc failed");
+//     pthread_exit(NULL);
+// }
+//     *result = sum;
+//     pthread_exit((void *)result);
+// }
+
+// void parallel_computing(int N, int n_proc) {
+//     pthread_t threads[n_proc];
+//     ThreadData thread_data[n_proc];
+
+//     for (int i = 0; i < n_proc; i++) {
+//         thread_data[i].N = N;
+//         thread_data[i].thread_id = i;
+//         thread_data[i].n_proc = n_proc;
+//         pthread_create(&threads[i], NULL, parallel_computing_thread, &thread_data[i]);
+//     }
+
+//     double total_sum = 0.0;
+//     for (int i = 0; i < n_proc; i++) {
+//         double *thread_result;
+//         pthread_join(threads[i], (void **)&thread_result);
+//         total_sum += *thread_result;
+//         free(thread_result);
+//     }
+// }
+
+// int compare(const void *a, const void *b) {
+//     double diff = (*(double *)a - *(double *)b);
+//     if (diff < 0) return -1;
+//     if (diff > 0) return 1;
+//     return 0;
+// }
 
 
 void smoothing_median(double *data, double *smoothed_data, int size, int window_size) {
