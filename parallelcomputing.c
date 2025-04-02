@@ -98,14 +98,14 @@ int parallelCompute (const char *fileName, int (*f) (int, int))
         {
             close(pipes[i][0]);
 
-            int *temp2 = (int *)malloc(chunk_size * sizeof(int));
+            int start = i * chunk_size;
 
             if (i == coreNum -1)
             {
                 chunk_size = chunk_size + remainder;
             }
 
-            int start = i * chunk_size;
+            int *temp2 = (int *)malloc(chunk_size * sizeof(int));
             int end = (i + 1) * (chunk_size) - 1;
 
             memcpy(temp2, &arr[start], (end - start + 1) * sizeof(int));
