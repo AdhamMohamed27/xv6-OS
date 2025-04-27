@@ -29,5 +29,5 @@ SYSCALL(getpid)
 SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
-SYSCALL(lseek)
-
+SYSCALL(setpriority)
+SYSCALL(printptable)
