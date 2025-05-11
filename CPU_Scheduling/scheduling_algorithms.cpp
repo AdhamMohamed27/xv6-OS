@@ -3,6 +3,7 @@
 #include <queue>
 #include <algorithm>
 #include <iomanip>
+#include <functional>
 using namespace std;
 
 struct Process {
@@ -181,8 +182,8 @@ void simulateSRTF(const vector<Process>& procs_input) {
     }
     cout << fixed << setprecision(2)
          << "Avg TAT: " << total_tat/n
-         << ", Avg WT: "   << total_wt/n
-         << ", Avg RT: "   << total_rt/n << "\n";
+         << ", Avg WT: " << total_wt/n
+         << ", Avg RT: " << total_rt/n << "\n";
 
     cout << "\nTime Interval | Running Process\n";
     int start2 = 0;
@@ -197,13 +198,6 @@ void simulateSRTF(const vector<Process>& procs_input) {
         }
     }
 }
-
-
-
-
-
-
-
 
 void simulateFCFS(const vector<Process>& procs_input) {
     //copy the input vector so that we do not modify the original processes
@@ -335,132 +329,126 @@ void simulateFCFS(const vector<Process>& procs_input) {
     }
 }
 
-
-
-
-
-
-
-
 void simulateMLFQ(const vector<Process>& procs_input, const vector<int>& quanta) {
-    //i decide the number of levels in the MLFQ based on the amount of time quantum i provide
-    int levels = quanta.size();
-    //input vector so that we don't modify the original data
     vector<Process> procs = procs_input;
-    
-    //num of procs and completed procs count and curr proc index and clock time initial
-    int n = procs.size(), completed = 0, idx = 0, time = 0;
-    
-    //timeline vector to store the order of procs execution
+    int n = procs.size();
+    int levels = quanta.size(); //numbers of levels in MLFQ is the size of quanta 
+    vector<queue<int>> mlfq(levels); //create a queue for each level
+    vector<function<void(vector<Process>&, int)>> schedulingFuncs(levels); //created a function pointers for scheduling algorithms
     vector<int> timeline;
-    
-    //create a queue for each prio level and each queue holds proc idx and queue will be fifo
-    vector<queue<int>> mlfq(levels);
+    int time = 0, completed = 0, idx = 0;
 
-    //initial all procs like all 3 sims
+    //initial procs like any sim
     for (auto &p : procs) {
         p.remaining_time = p.burst_time;
         p.start_time = -1;
         p.started = false;
     }
+    //sort the procs by arrival time like any sim
+    sort(procs.begin(), procs.end(), [](const Process &a, const Process &b) {
+        return a.arrival_time < b.arrival_time;
+    });
 
-    //sort procs by arrival time first is at the front 
-    sort(procs.begin(), procs.end(),
-         [](auto &a, auto &b) { return a.arrival_time < b.arrival_time; });
+    //for each queue we point to a scheduling algo so here for level 0 i used RR and for lower levels i used FCFS
+    schedulingFuncs[0] = [&](vector<Process>& procs, int quantum) { simulateRR(procs, quantum); }; 
+    for (int i = 1; i < levels; ++i) {
+        schedulingFuncs[i] = [&](vector<Process>& procs, int) { simulateFCFS(procs); }; 
+    }
 
-    //sim loop continues until all procs are completed
+    //sim loop 
     while (completed < n) {
-        //enqueue all procs that have arrived by the current time into the top queue (level 0)
+        //push newly arrived procs into the top level queue
         while (idx < n && procs[idx].arrival_time <= time) {
-            mlfq[0].push(idx); 
-            idx++;  
+            mlfq[0].push(idx);
+            idx++;
         }
 
-        //whenever a proc arrives we check the queue levels and find the first nonempty queue and place the proc in it
+        //find the first nonempty queue to allocate the new procs and if no queues are empty increment time
         int lvl = 0;
-        while (lvl < levels && mlfq[lvl].empty()) lvl++;  
+        while (lvl < levels && mlfq[lvl].empty()) lvl++;
 
-        //again same logic like any sim if no procs are in any queue ready to execute increment time
-        if (lvl == levels) {
-            time++;  
-            continue; 
+        if (lvl == levels) { 
+            time++;
+            continue;
         }
 
-        //get the proc at the front of the highest nonempty queue and pop it for execution
+        //since we sorted the procs by arrival time we can just pop the first proc in the queue
         int i = mlfq[lvl].front();
-        mlfq[lvl].pop(); 
+        mlfq[lvl].pop();
 
-        //if the proc didnt start before mark its start time and set started flag to true 
+        //set the start time and started flag for the proc like any sim
         if (!procs[i].started) {
-            procs[i].start_time = time; 
-            procs[i].started = true;    
+            procs[i].start_time = time;
+            procs[i].started = true;
         }
 
-        //here is the logic of MLFQ which we allow a proc in any level to execute for the time qunatum of that level OR 
-        //if the proc finishes exedution before the time slice expires
-        int slice = min(quanta[lvl], procs[i].remaining_time);  
-        for (int t = 0; t < slice; ++t) {  
-            timeline.push_back(procs[i].pid);  //save the proc ID in the timeline
-            procs[i].remaining_time--;          
-            time++;                            
-
-            //same logic like any sim to ensure that any proc that arrives while the current proc is executing is added to the queue
+        //execute the procs using the scheduling function for the current level
+        int slice = (lvl == 0) ? min(quanta[lvl], procs[i].remaining_time) : procs[i].remaining_time;
+        for (int t = 0; t < slice; ++t) {
+            timeline.push_back(procs[i].pid);
+            procs[i].remaining_time--;
+            time++;
             while (idx < n && procs[idx].arrival_time <= time) {
-                mlfq[0].push(idx);  
-                idx++;  
+                mlfq[0].push(idx);
+                idx++;
             }
+            if (procs[i].remaining_time == 0) break;
         }
 
         //after the time slice is over we have two options:
         //1 that the proc is done executing in which we save the completion time and ++ the no of completed procs
         //2 the proc is not done executing in which we need to "age" this proc to lower priority queue to avoid starving other procs
-        if (procs[i].remaining_time == 0) {  
-            procs[i].completion_time = time; 
-            completed++;  
-        } else {  
-            int next_lvl = min(lvl + 1, levels - 1); //while aging the proc we need to check if the next level is not out of bounds
-            mlfq[next_lvl].push(i);  
+        if (procs[i].remaining_time == 0) {
+            procs[i].completion_time = time;
+            completed++;
+        } else {
+            
+            if (lvl < levels - 1) {
+                mlfq[lvl + 1].push(i);
+            } else {
+                mlfq[lvl].push(i); //while aging the proc we need to check if the next level is not out of bounds
+            }
         }
     }
 
-    //same format as other sims
+    
     cout << "\nMLFQ results:\n";
     cout << "PID  Arrival  Burst  Start  Complete  Turnaround  Waiting  Response\n";
-    double total_tat=0, total_wt=0, total_rt=0;
-    for (auto &p : procs) {
+    double total_tat = 0, total_wt = 0, total_rt = 0;
+    for (const auto &p : procs) {
         int tat = p.completion_time - p.arrival_time;
         int wt  = tat - p.burst_time;
-        int rt  = p.start_time  - p.arrival_time;
-        total_tat += tat; total_wt  += wt; total_rt += rt;
-        cout << setw(3)<<p.pid
-             << setw(9)<<p.arrival_time
-             << setw(7)<<p.burst_time
-             << setw(7)<<p.start_time
-             << setw(11)<<p.completion_time
-             << setw(13)<<tat
-             << setw(8)<<wt
-             << setw(9)<<rt<<"\n";
+        int rt  = p.start_time - p.arrival_time;
+        total_tat += tat;
+        total_wt  += wt;
+        total_rt  += rt;
+        cout << setw(3) << p.pid
+             << setw(9) << p.arrival_time
+             << setw(7) << p.burst_time
+             << setw(7) << p.start_time
+             << setw(11) << p.completion_time
+             << setw(13) << tat
+             << setw(8) << wt
+             << setw(9) << rt << "\n";
     }
-    cout << fixed<<setprecision(2)
-         << "Avg TAT: "<< total_tat/n
-         << ", Avg WT: "<< total_wt/n
-         << ", Avg RT: "<< total_rt/n <<"\n";
+    cout << fixed << setprecision(2)
+         << "Avg TAT: " << total_tat / n
+         << ", Avg WT: " << total_wt / n
+         << ", Avg RT: " << total_rt / n << "\n";
 
-   
+    
     cout << "\nTime Interval | Running Process\n";
-    int start=0, last=timeline[0];
-
-    for (int t=1; t<=(int)timeline.size(); ++t) {
-        int pid = (t<(int)timeline.size()? timeline[t]: -1);
-
-        if (pid != last) {
-            cout << setw(2)<<start<<" - "<<setw(2)<<t<<"       "
-                 << 'P'<<last<<"\n";
-            start = t; last = pid;
+    int start = 0, last_pid = timeline[0];
+    for (int t = 1; t <= (int)timeline.size(); ++t) {
+        int pid = (t < (int)timeline.size() ? timeline[t] : -1);
+        if (pid != last_pid) {
+            cout << setw(2) << start << " - " << setw(2) << t << "       "
+                 << 'P' << last_pid << "\n";
+            start = t;
+            last_pid = pid;
         }
     }
 }
-
 
 int main() {
 
@@ -476,9 +464,8 @@ int main() {
     simulateRR(procs, quantum);
     simulateSRTF(procs);
     simulateFCFS(procs);
-    vector<int> quanta = {4, 10, 20};  // example: 3 levels
+    vector<int> quanta = {10, 10, 20};  // assign the quanta for each level from here 
     simulateMLFQ(procs, quanta);
-
 
     return 0;
 
