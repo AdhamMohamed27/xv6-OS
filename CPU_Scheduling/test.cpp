@@ -602,148 +602,69 @@ void summarizeStats(const vector<vector<ProcessStats>>& all_stats, const string&
 
 int main() {
     const int runs = 5;
-    const int num_processes = 100;
-    // int quantum = 3;
-    // vector<int> quanta = {8, 4, 2};
+    int quantum = 8;
+    vector<int> quanta = {8, 16, 32};  // MLFQ levels tuned for real burst variation
 
-
+    vector<int> process_counts = {100, 150, 200, 250, 300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000};  // Add more if needed
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::exponential_distribution<> arrival_dist(0.5);
-    std::exponential_distribution<> burst_dist(0.2);
-    std::uniform_int_distribution<> q_dist(2, 6); // random quantum [2,6]
-    std::uniform_int_distribution<> mlfq_dist(3, 10); // quanta range for MLFQ levels
+    std::exponential_distribution<> arrival_dist(0.3);
+    std::exponential_distribution<> burst_dist(0.1);
 
-    int quantum = q_dist(gen); // random RR quantum
-    vector<int> quanta = {mlfq_dist(gen), mlfq_dist(gen), mlfq_dist(gen)}; // random MLFQ quanta
-
-    cout << "=== Quantum for Round Robin: " << quantum << "\n";
-    cout << "=== Quanta for MLFQ levels: ";
-    for (int q : quanta) cout << q << " ";
-    cout << "\n";
-
-    // Stats containers
-    vector<vector<ProcessStats>> stats_rr(runs, vector<ProcessStats>(num_processes));
-    vector<vector<ProcessStats>> stats_srtf(runs, vector<ProcessStats>(num_processes));
-    vector<vector<ProcessStats>> stats_fcfs(runs, vector<ProcessStats>(num_processes));
-    vector<vector<ProcessStats>> stats_mlfq(runs, vector<ProcessStats>(num_processes));
-
-    for (int r = 0; r < runs; ++r) {
-        // Generate new processes
-        double current_arrival = 0.0;
-        vector<Process> procs;
-        cout << "\n=== Process Queue for Run " << r + 1 << " ===\n";
-        cout << "PID  Arrival  Burst\n";
-        for (int i = 0; i < num_processes; ++i) {
-            current_arrival += arrival_dist(gen);
-            int burst = static_cast<int>(burst_dist(gen)) + 1;
-            int arrival = static_cast<int>(current_arrival);
-            procs.push_back({i, arrival, burst});
-            cout << setw(3) << i << setw(9) << arrival << setw(7) << burst << "\n";
-        }
-
-        // Run all schedulers
-        simulateSRTF(procs, stats_srtf[r]);
-        simulateFCFS(procs, stats_fcfs[r]);
-        simulateMLFQ(procs, quanta, stats_mlfq[r]);
-        simulateRR(procs, quantum, stats_rr[r]);
-    }
-
-    // Aggregate statistics
-    vector<ProcessStats> rr_combined(num_processes), srtf_combined(num_processes), fcfs_combined(num_processes), mlfq_combined(num_processes);
-    for (int r = 0; r < runs; ++r) {
-        for (int i = 0; i < num_processes; ++i) {
-            auto combine = [](ProcessStats& out, const ProcessStats& in) {
-                out.pid = in.pid;
-                out.tat_values.insert(out.tat_values.end(), in.tat_values.begin(), in.tat_values.end());
-                out.wt_values.insert(out.wt_values.end(), in.wt_values.begin(), in.wt_values.end());
-                out.rt_values.insert(out.rt_values.end(), in.rt_values.begin(), in.rt_values.end());
-            };
-            combine(rr_combined[i], stats_rr[r][i]);
-            combine(srtf_combined[i], stats_srtf[r][i]);
-            combine(fcfs_combined[i], stats_fcfs[r][i]);
-            combine(mlfq_combined[i], stats_mlfq[r][i]);
-        }
-    }
-
-    printSummary("Round Robin", rr_combined);
-    printSummary("SRTF", srtf_combined);
-    printSummary("FCFS", fcfs_combined);
-    printSummary("MLFQ", mlfq_combined);
-
-    auto get_avg = [](const vector<ProcessStats>& stats, string name) {
-        vector<int> all_wt, all_tat;
-        for (const auto& ps : stats) {
-            all_wt.insert(all_wt.end(), ps.wt_values.begin(), ps.wt_values.end());
-            all_tat.insert(all_tat.end(), ps.tat_values.begin(), ps.tat_values.end());
-        }
-        cout << ">>> " << name << " AVG Waiting Time: " << average(all_wt)
-             << ", AVG Turnaround Time: " << average(all_tat) << "\n";
-    };
-
-    // === Compute average WT and TAT for each algorithm ===
-    vector<int> all_wt_rr, all_tat_rr, all_rt_rr;
-    vector<int> all_wt_srtf, all_tat_srtf, all_rt_srtf;
-    vector<int> all_wt_fcfs, all_tat_fcfs, all_rt_fcfs;
-    vector<int> all_wt_mlfq, all_tat_mlfq, all_rt_mlfq;
-    
-
-    for (const auto& ps : rr_combined) {
-        all_wt_rr.insert(all_wt_rr.end(), ps.wt_values.begin(), ps.wt_values.end());
-        all_tat_rr.insert(all_tat_rr.end(), ps.tat_values.begin(), ps.tat_values.end());
-        all_rt_rr.insert(all_rt_rr.end(), ps.rt_values.begin(), ps.rt_values.end());
-    }
-    
-    for (const auto& ps : srtf_combined) {
-        all_wt_srtf.insert(all_wt_srtf.end(), ps.wt_values.begin(), ps.wt_values.end());
-        all_tat_srtf.insert(all_tat_srtf.end(), ps.tat_values.begin(), ps.tat_values.end());
-        all_rt_srtf.insert(all_rt_srtf.end(), ps.rt_values.begin(), ps.rt_values.end());
-    }
-    
-    for (const auto& ps : fcfs_combined) {
-        all_wt_fcfs.insert(all_wt_fcfs.end(), ps.wt_values.begin(), ps.wt_values.end());
-        all_tat_fcfs.insert(all_tat_fcfs.end(), ps.tat_values.begin(), ps.tat_values.end());
-        all_rt_fcfs.insert(all_rt_fcfs.end(), ps.rt_values.begin(), ps.rt_values.end());
-    }
-    
-    for (const auto& ps : mlfq_combined) {
-        all_wt_mlfq.insert(all_wt_mlfq.end(), ps.wt_values.begin(), ps.wt_values.end());
-        all_tat_mlfq.insert(all_tat_mlfq.end(), ps.tat_values.begin(), ps.tat_values.end());
-        all_rt_mlfq.insert(all_rt_mlfq.end(), ps.rt_values.begin(), ps.rt_values.end());
-    }
-    
-
-    // === Print the averages for report ===
-    cout << "\n== Overall Averages ==\n";
-    cout << "RR    : WT = " << average(all_wt_rr) << ", TAT = " << average(all_tat_rr) << "\n";
-    cout << "SRTF  : WT = " << average(all_wt_srtf) << ", TAT = " << average(all_tat_srtf) << "\n";
-    cout << "FCFS  : WT = " << average(all_wt_fcfs) << ", TAT = " << average(all_tat_fcfs) << "\n";
-    cout << "MLFQ  : WT = " << average(all_wt_mlfq) << ", TAT = " << average(all_tat_mlfq) << "\n";
-
-    /// === Export to summary.csv ===
     ofstream summary_csv("summary.csv");
-    summary_csv << "Algorithm,AvgWaitingTime,AvgTurnaroundTime,AvgResponseTime\n";
-    summary_csv << "RR," << average(all_wt_rr) << "," << average(all_tat_rr) << "," << average(all_rt_rr) << "\n";
-    summary_csv << "SRTF," << average(all_wt_srtf) << "," << average(all_tat_srtf) << "," << average(all_rt_srtf) << "\n";
-    summary_csv << "FCFS," << average(all_wt_fcfs) << "," << average(all_tat_fcfs) << "," << average(all_rt_fcfs) << "\n";
-    summary_csv << "MLFQ," << average(all_wt_mlfq) << "," << average(all_tat_mlfq) << "," << average(all_rt_mlfq) << "\n";
+    summary_csv << "Processes,Algorithm,AvgWaitingTime,AvgTurnaroundTime,AvgResponseTime\n";
+
+    for (int num_processes : process_counts) {
+        cout << "\n===== Running for " << num_processes << " processes =====\n";
+
+        vector<int> all_wt_rr, all_tat_rr, all_rt_rr;
+        vector<int> all_wt_srtf, all_tat_srtf, all_rt_srtf;
+        vector<int> all_wt_fcfs, all_tat_fcfs, all_rt_fcfs;
+        vector<int> all_wt_mlfq, all_tat_mlfq, all_rt_mlfq;
+
+        for (int r = 0; r < runs; ++r) {
+            double current_arrival = 0.0;
+            vector<Process> procs;
+            for (int i = 0; i < num_processes; ++i) {
+                current_arrival += arrival_dist(gen);
+                int burst = static_cast<int>(burst_dist(gen)) + 1;
+                int arrival = static_cast<int>(current_arrival);
+                procs.push_back({i, arrival, burst});
+            }
+
+            vector<ProcessStats> rr(num_processes), srtf(num_processes), fcfs(num_processes), mlfq(num_processes);
+            simulateRR(procs, quantum, rr);
+            simulateSRTF(procs, srtf);
+            simulateFCFS(procs, fcfs);
+            simulateMLFQ(procs, quanta, mlfq);
+
+            auto collect = [](const vector<ProcessStats>& stats, vector<int>& wt, vector<int>& tat, vector<int>& rt) {
+                for (const auto& ps : stats) {
+                    wt.insert(wt.end(), ps.wt_values.begin(), ps.wt_values.end());
+                    tat.insert(tat.end(), ps.tat_values.begin(), ps.tat_values.end());
+                    rt.insert(rt.end(), ps.rt_values.begin(), ps.rt_values.end());
+                }
+            };
+
+            collect(rr, all_wt_rr, all_tat_rr, all_rt_rr);
+            collect(srtf, all_wt_srtf, all_tat_srtf, all_rt_srtf);
+            collect(fcfs, all_wt_fcfs, all_tat_fcfs, all_rt_fcfs);
+            collect(mlfq, all_wt_mlfq, all_tat_mlfq, all_rt_mlfq);
+        }
+
+        auto write_line = [&](const string& name, const vector<int>& wt, const vector<int>& tat, const vector<int>& rt) {
+            summary_csv << num_processes << "," << name << ","
+                        << average(wt) << "," << average(tat) << "," << average(rt) << "\n";
+        };
+
+        write_line("RR", all_wt_rr, all_tat_rr, all_rt_rr);
+        write_line("SRTF", all_wt_srtf, all_tat_srtf, all_rt_srtf);
+        write_line("FCFS", all_wt_fcfs, all_tat_fcfs, all_rt_fcfs);
+        write_line("MLFQ", all_wt_mlfq, all_tat_mlfq, all_rt_mlfq);
+    }
 
     summary_csv.close();
-
-    cout << "Saved summary: " << filesystem::absolute("summary.csv") << "\n";
-
-
-
-    exportStatsToCSV("rr_stats.csv", rr_combined);
-    cout << "Saved: " << filesystem::absolute("rr_stats.csv") << "\n";
-    exportStatsToCSV("srtf_stats.csv", srtf_combined);
-    cout << "Saved: " << filesystem::absolute("srtf_stats.csv") << "\n";
-    exportStatsToCSV("fcfs_stats.csv", fcfs_combined);
-    cout << "Saved: " << filesystem::absolute("fcfs_stats.csv") << "\n";
-    exportStatsToCSV("mlfq_stats.csv", mlfq_combined);
-    cout << "Saved: " << filesystem::absolute("mlfq_stats.csv") << "\n";
-
-
+    cout << "✅ Saved final summary: " << filesystem::absolute("summary.csv") << "\n";
     return 0;
 }
